@@ -15,8 +15,10 @@ import com.example.demo.Infrastructure.Controllers.DTOs.Components.Users.Address
 import com.example.demo.Infrastructure.Controllers.DTOs.Components.Users.Username;
 import com.example.demo.Infrastructure.Controllers.DTOs.UserDTO;
 import com.example.demo.Infrastructure.Repositories.ProductRepository;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.json.JsonParseException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.stereotype.Service;
@@ -38,7 +40,7 @@ public class OrderServiceImpl implements AssetLifecycle<OrderDTO>{
         return foundEntities.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
     public Optional<OrderDTO> getAssetByName(String name){
-        Optional<List<Orders>> foundEntities = orderRepository.findByStatus(Status.valueOf(name));
+        Optional<List<Orders>> foundEntities = orderRepository.findByStatus(name);
         List<Orders> foundEntities2 = foundEntities.get();
         Optional<Orders> firstFoundEntity = foundEntities2.stream().findAny();
         return firstFoundEntity.map(this::convertToDTO);
@@ -88,21 +90,26 @@ public class OrderServiceImpl implements AssetLifecycle<OrderDTO>{
     }
 
     public void deleteAssetById(int id){
-        Optional<Orders> foundEntity = orderRepository.findByOrderId(id);
-        List<Products> iterator = new ArrayList<Products>(foundEntity.get().getProductsLists());
+        try {
+            Optional<Orders> foundEntity = orderRepository.findByOrderId(id);
+            List<Products> iterator = new ArrayList<Products>(foundEntity.get().getProductsLists());
 
-        for(Products x: iterator){
-            foundEntity.get().removeProduct(x);
+            for(Products x: iterator){
+                foundEntity.get().removeProduct(x);
+            }
+            orderRepository.deleteById(id);
+        } catch (NullPointerException|NoSuchElementException e){
+            throw new AssetException("Order not found.", AssetException.ErrorCode.ORDERNOTFOUND, HttpStatus.BAD_REQUEST);
         }
-        orderRepository.deleteById(id);
     }
 
     public Orders convertToEntity(OrderDTO orderDTO){
         try{
-            return Orders.builder()
-                    .status(orderDTO.getStatus())
+            Orders orders = Orders.builder()
+                    .status(orderDTO.getStatus().toString())
                     .createdDate(orderDTO.getCreatedDate())
                     .build();
+            return orders;
         } catch (HttpMessageNotReadableException e){
             throw new AssetException("Bad JSON request.", AssetException.ErrorCode.JSON_ERROR, HttpStatus.BAD_REQUEST);
         }
@@ -110,7 +117,7 @@ public class OrderServiceImpl implements AssetLifecycle<OrderDTO>{
     public OrderDTO convertToDTO(Orders orders){
         return OrderDTO.builder()
                 .orderId(orders.getOrderId())
-                .status(orders.getStatus())
+                .status(Status.valueOf(orders.getStatus()))
                 .createdDate(orders.getCreatedDate())
                 .products(orders.getProductsLists().stream().map(
                         product -> ProductDTO.builder()
