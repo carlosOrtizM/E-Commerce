@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface OrderRepository extends JpaRepository<Orders, Integer> {
     public List<Orders> findAll();
     public Optional<Orders> findByOrderId(int orderId);
-    public Optional<List<Orders>> findByStatus(Status status);
+    public Optional<List<Orders>> findByStatus(String status);
     public Orders save(Orders orders);
     public void deleteById(int id);
 }

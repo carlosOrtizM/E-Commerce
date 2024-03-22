@@ -2,13 +2,16 @@ package com.example.demo.Application;
 
 import com.example.demo.Domain.Orders;
 import com.example.demo.Exceptions.AssetException;
+import com.example.demo.Infrastructure.Controllers.DTOs.Components.Orders.Status;
 import com.example.demo.Infrastructure.Controllers.DTOs.OrderDTO;
 import com.example.demo.Infrastructure.Ports.AssetLifecycle;
 import com.example.demo.Infrastructure.Repositories.ProductRepository;
 import com.example.demo.Infrastructure.Controllers.DTOs.ProductDTO;
 import com.example.demo.Domain.Products;
 import lombok.AllArgsConstructor;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.stereotype.Service;
@@ -47,7 +50,11 @@ public class ProductServiceImpl implements AssetLifecycle<ProductDTO>{
     }
 
     public void createAsset(ProductDTO created){
-        productRepository.save(convertToEntity(created));
+        try {
+            productRepository.save(convertToEntity(created));
+        } catch (ConstraintViolationException|DataIntegrityViolationException e){
+            throw new AssetException("Bad JSON request.", AssetException.ErrorCode.JSON_ERROR, HttpStatus.BAD_REQUEST);
+        }
     }
 
     public void updateAssetByName(String asset, ProductDTO updater){
@@ -67,13 +74,18 @@ public class ProductServiceImpl implements AssetLifecycle<ProductDTO>{
         }
     }
     private void updateAsset(Products foundEntity, ProductDTO updater){
-        int productId = foundEntity.getProductId();
-        foundEntity = convertToEntity(updater);
-        foundEntity.setProductId(productId);
-        productRepository.save(foundEntity);
+        try{
+            int productId = foundEntity.getProductId();
+            foundEntity = convertToEntity(updater);
+            foundEntity.setProductId(productId);
+            productRepository.save(foundEntity);
+        } catch (ConstraintViolationException|DataIntegrityViolationException exception){
+            throw new AssetException("Bad JSON request.", AssetException.ErrorCode.JSON_ERROR, HttpStatus.BAD_REQUEST);
+        }
     }
 
     public void deleteAssetById(int id){
+        productRepository.findByProductId(id).orElseThrow(()->new AssetException("Product not found.", AssetException.ErrorCode.PRODUCTNOTFOUND, HttpStatus.NOT_FOUND));
         productRepository.deleteById(id);
     }
 
@@ -85,7 +97,7 @@ public class ProductServiceImpl implements AssetLifecycle<ProductDTO>{
                     .categoryId(productDTO.getCategoryId())
                     .price(productDTO.getPrice())
                     .build();
-        } catch (HttpMessageNotReadableException e){
+        } catch (ConstraintViolationException|DataIntegrityViolationException e){
             throw new AssetException("Bad JSON request.", AssetException.ErrorCode.JSON_ERROR, HttpStatus.BAD_REQUEST);
         }
     }
@@ -107,7 +119,7 @@ public class ProductServiceImpl implements AssetLifecycle<ProductDTO>{
             newOrder = OrderDTO.builder()
                     .orderId(orders.getOrderId())
                     .createdDate(orders.getCreatedDate())
-                    .status(orders.getStatus())
+                    .status(Status.valueOf(orders.getStatus()))
                     .build();
         }
         return newOrder;

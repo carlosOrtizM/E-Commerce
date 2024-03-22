@@ -22,7 +22,7 @@ public class Orders {
     private @Id @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "id") int orderId;
 
-    private @Enumerated(EnumType.STRING) @Column(name = "status") Status status;
+    private @NonNull@Column(name = "status") String status;
 
     private @Column(name = "created_date") Date createdDate;
 
