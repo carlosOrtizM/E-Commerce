@@ -3,6 +3,7 @@ package com.example.demo.Application;
 import com.example.demo.Domain.Orders;
 import com.example.demo.Domain.Products;
 import com.example.demo.Exceptions.AssetException;
+import com.example.demo.Infrastructure.Controllers.DTOs.Components.Orders.Status;
 import com.example.demo.Infrastructure.Controllers.DTOs.Components.Users.Privilege;
 import com.example.demo.Infrastructure.Controllers.DTOs.OrderDTO;
 import com.example.demo.Infrastructure.Controllers.DTOs.Components.Users.Address;
@@ -15,15 +16,14 @@ import com.example.demo.Infrastructure.Ports.AssetLifecycle;
 import com.example.demo.Infrastructure.Repositories.OrderRepository;
 import com.example.demo.Infrastructure.Repositories.UserRepository;
 import lombok.AllArgsConstructor;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -94,13 +94,17 @@ public class UserServiceImpl implements AssetLifecycle<UserDTO> {
     }
 
     public void deleteAssetById(int id){
-        Optional<Users> foundEntity = userRepository.findByUserId(id);
-        List<Orders> iterator = new ArrayList<Orders>(foundEntity.get().getOrdersList());
+        try {
+            Optional<Users> foundEntity = userRepository.findByUserId(id);
+            List<Orders> iterator = new ArrayList<Orders>(foundEntity.get().getOrdersList());
 
-        for(Orders x: iterator){
-            foundEntity.get().removeOrder(x);
+            for(Orders x: iterator){
+                foundEntity.get().removeOrder(x);
+            }
+            userRepository.deleteById(id);
+        } catch (NoSuchElementException e){
+            throw new AssetException("Asset not found.", AssetException.ErrorCode.USERNOTFOUND, HttpStatus.NOT_FOUND);
         }
-        userRepository.deleteById(id);
     }
 
     private Users convertToEntity(UserDTO userDTO){
@@ -112,7 +116,7 @@ public class UserServiceImpl implements AssetLifecycle<UserDTO> {
                     .privilege(userDTO.getPrivilege().toString())
                     .build();
         }
-        catch (HttpMessageNotReadableException e){
+        catch (ConstraintViolationException | DataIntegrityViolationException |NullPointerException exception){
             throw new AssetException("Bad JSON request.", AssetException.ErrorCode.JSON_ERROR, HttpStatus.BAD_REQUEST);
         }
     }
@@ -127,7 +131,7 @@ public class UserServiceImpl implements AssetLifecycle<UserDTO> {
                                 orders1 -> OrderDTO.builder()
                                         .orderId(orders1.getOrderId())
                                         .createdDate(orders1.getCreatedDate())
-                                        .status(orders1.getStatus())
+                                        .status(Status.valueOf(orders1.getStatus()))
                                         .build())
                         .collect(Collectors.toList()))
                 .build();
