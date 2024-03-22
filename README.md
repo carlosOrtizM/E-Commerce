@@ -17,10 +17,14 @@ JPA Repositories,
 Controllers (RESTful!?),
 Services
 
+We´ve also got a Global Exception Handler.
+
 Generic CRUD Interface that is implementented by all services.
 Users has a dependency injection (instead of longer service) that validates username & password.
 
 Also contains:
 DB Model,
 Data.sql (Tables Initializer)
+
+Have a good day.
 
