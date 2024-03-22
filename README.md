@@ -22,6 +22,5 @@ Users has a dependency injection (instead of longer service) that validates user
 
 Also contains:
 DB Model
-DB Initializer Script
 Data.sql (Tables Initializer)
 
